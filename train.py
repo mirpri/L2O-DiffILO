@@ -251,7 +251,7 @@ class Trainer:
         data_loader = self.valid_loader
             
         epoch_metrics = {
-            'loss': 0, 'obj': 0, 'cons': 0, 'best': 0
+            'loss': 0.0, 'obj': 0.0, 'cons': 0.0, 'best': 0.0
         }
         num_samples = 0
 
@@ -265,8 +265,8 @@ class Trainer:
             logits = unbatch(vars_o, batch=batch.variable_features_batch)
             batch = batch.to_data_list()
             batch_metrics = {
-                'loss': 0, 'obj': 0, 'cons': 0, 'best': 0,
-                'best_obj': 0, 'mean_obj': 0
+                'loss': 0.0, 'obj': 0.0, 'cons': 0.0, 'best': 0.0,
+                'best_obj': 0.0, 'mean_obj': 0.0
             }
 
             # Process each graph in batch
@@ -299,15 +299,22 @@ class Trainer:
                     'best_obj': (xx @ c).min().item(),
                     'mean_obj': (xx @ c).mean().item()
                 }
+                # convert tensors / numpy / python scalars to Python floats before accumulating
                 for k, v in metrics.items():
-                    batch_metrics[k] += v
+                    if isinstance(v, torch.Tensor):
+                        val = v.item()
+                    else:
+                        # covers float, int, numpy scalar
+                        val = float(v)
+                    batch_metrics[k] += val
 
             # Update epoch metrics
             batch_size = len(batch)
             num_samples += batch_size
             
             for k in ['loss', 'obj', 'cons', 'best']:
-                epoch_metrics[k] += batch_metrics[k].item()
+                # batch_metrics entries are Python floats after conversion above
+                epoch_metrics[k] += float(batch_metrics[k])
 
             # Log batch metrics
             normalized_metrics = {k: v/batch_size for k,v in batch_metrics.items()}

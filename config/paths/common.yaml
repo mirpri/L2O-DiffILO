@@ -1,6 +1,6 @@
-data_dir: ./data/${dataset.name}/
-train_data_dir: ./data/${dataset.name}/train/
-test_data_dir: ./data/${dataset.name}/test/
+data_dir: ./data/ILO_data/${dataset.name}/
+train_data_dir: ./data/ILO_data/${dataset.name}/train/
+test_data_dir: ./data/ILO_data/${dataset.name}/test/
 
 preprocess_dir: ./workspace/dataset/${dataset.name}/
 data_samples_dir: ./workspace/dataset/${dataset.name}/samples/

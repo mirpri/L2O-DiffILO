@@ -4,7 +4,8 @@ defaults:
   - dataset: CA
   - model: ${dataset}
 
-job_name: k0_${model.k_0}_k1_${model.k_1}_delta_${model.delta}
+# Use existing model keys (embd_size, depth) instead of undefined k_0/k_1/delta
+job_name: ${dataset.name}-emb${model.embd_size}-dep${model.depth}
 
 seed: 3
 cuda: 1
@@ -16,9 +17,9 @@ model_dir: ./workspace/models/${dataset.name}
 mu: 10
 
 paths:
-  data_dir: ./data/${dataset.name}/
-  train_data_dir: ./data/${dataset.name}/train/
-  test_data_dir: ./data/${dataset.name}/test/
+  data_dir: ./data/ILO_data/${dataset.name}/
+  train_data_dir: ./data/ILO_data/${dataset.name}/train/
+  test_data_dir: ./data/ILO_data/${dataset.name}/test/
 
   preprocess_dir: ./preprocess/${dataset.name}/
   data_samples_dir: ./preprocess/${dataset.name}/samples/

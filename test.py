@@ -15,6 +15,7 @@ from tqdm import tqdm
 import ecole
 import json
 import pyscipopt as scip
+from datetime import datetime
 
 mp.set_start_method('spawn', force=True)
 
@@ -204,7 +205,7 @@ def test(config: DictConfig):
     set_cpu_num(config.num_workers + 1)
     tb_writter.set_logger(config.paths.tensorboard_dir)
     
-    # Create output directories
+    # Create output directories (may be recomputed later if model_dir is auto-discovered)
     test_dir = config.paths.test_dir
     log_dir = os.path.join(test_dir, "logs") 
     json_dir = os.path.join(test_dir, "jsons")
@@ -212,24 +213,54 @@ def test(config: DictConfig):
         os.makedirs(directory, exist_ok=True)
     
     # Load and prepare model
-    model_path = os.path.join(config.model_dir, "models", "model.pth")
+    def _discover_latest_model_dir(dataset_name: str, root: str = "./workspace/train"):
+        candidates = []
+        if not os.path.isdir(root):
+            return None
+        # iterate over date folders
+        for date_dir in sorted(os.listdir(root)):
+            date_path = os.path.join(root, date_dir)
+            if not os.path.isdir(date_path):
+                continue
+            # iterate run folders
+            for run in sorted(os.listdir(date_path)):
+                run_path = os.path.join(date_path, run)
+                if not os.path.isdir(run_path):
+                    continue
+                # must include dataset token and contain models/model.pth
+                if f"-{dataset_name}-" in run and os.path.exists(os.path.join(run_path, "models", "model.pth")):
+                    mtime = os.path.getmtime(os.path.join(run_path, "models", "model.pth"))
+                    candidates.append((mtime, run_path))
+        if not candidates:
+            return None
+        candidates.sort(key=lambda x: x[0])
+        return candidates[-1][1]
+
+    model_dir = config.model_dir
+    model_path = os.path.join(model_dir, "models", "model.pth")
+    if not os.path.exists(model_path):
+        auto_dir = _discover_latest_model_dir(config.dataset.name)
+        if auto_dir is None:
+            raise FileNotFoundError(f"No trained model found. Expected at {model_path} or under ./workspace/train/** containing '-{config.dataset.name}-' and models/model.pth")
+        model_dir = auto_dir
+        model_path = os.path.join(model_dir, "models", "model.pth")
+        # Recompute output dirs to be under the discovered model_dir
+        now = datetime.now()
+        test_dir = os.path.join(model_dir, "test", now.strftime("%m-%d"), f"{now.strftime('%H:%M:%S')}-{config.job_name}")
+        log_dir = os.path.join(test_dir, "logs")
+        json_dir = os.path.join(test_dir, "jsons")
+        for directory in [test_dir, log_dir, json_dir]:
+            os.makedirs(directory, exist_ok=True)
+        tb_writter.set_logger(test_dir)
     model = GNNPredictor(config.model)
-    model.load_state_dict(torch.load(model_path, map_location='cuda:0'), strict=False)
+    model.load_state_dict(torch.load(model_path, map_location=f'cuda:{config.cuda}'), strict=False)
     model.eval()
 
-    # Get test files and run parallel solving
+    # Get test files and run solving (avoid multiprocessing pickling of model with PyCapsule objects)
     files = os.listdir(config.paths.test_data_dir)
-    solve_func = partial(solve, 
-                        model=model,
-                        test_data_dir=config.paths.test_data_dir,
-                        log_dir=log_dir,
-                        json_dir=json_dir,
-                        mu=config.mu)
-                        
-    with mp.Pool(config.num_workers) as pool:
-        list(tqdm(pool.imap(solve_func, files), 
-                 total=len(files),
-                 desc="Solving"))
+    files = [f for f in files if f.endswith('.lp')]  # basic filter
+    for f in tqdm(files, desc="Solving"):
+        solve(f, model=model, test_data_dir=config.paths.test_data_dir, log_dir=log_dir, json_dir=json_dir, mu=config.mu)
         
 
 if __name__ == "__main__":
