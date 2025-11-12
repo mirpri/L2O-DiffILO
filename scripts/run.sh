@@ -23,3 +23,9 @@ python train.py dataset=CA cuda=5 > logs/CA/train.log 2>&1 &
 python test.py dataset=CA cuda=5 > logs/CA/test.log 2>&1 &
 
 
+######## BASELINE (Gurobi) ########
+python test_baseline.py dataset=SC cuda=5 > logs/SC/baseline.log 2>&1 &
+
+python test_baseline.py dataset=IS cuda=5 > logs/IS/baseline.log 2>&1 &
+
+python test_baseline.py dataset=CA cuda=5 > logs/CA/baseline.log 2>&1 &

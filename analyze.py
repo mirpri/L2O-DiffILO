@@ -2,8 +2,8 @@ import re
 import pandas as pd
 
 # --- Configuration ---
-LOG_FILE = "./logs/IS/test.log"   # path to your log file
-CLEAN_LOG_FILE = "./logs/IS/cleaned_test.log"
+LOG_FILE = "./logs/IS/baseline.log"   # path to your log file
+CLEAN_LOG_FILE = "./logs/IS/cleaned_baseline.log"
 OUTPUT_CSV = "objectives.csv"
 TIME_POINTS = ['10', '100', '1000']  # seconds
 MIN_OR_MAX = 'MAX'  # 'MIN' for minimization, 'MAX' for maximization
@@ -23,12 +23,12 @@ with open(CLEAN_LOG_FILE, "w", encoding="utf-8", errors="ignore") as clean_f:
 
 with open(CLEAN_LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
     for line in f:
-        if(line.startswith("Read LP format model from file")):
+        if(line.startswith("CPU model:")):
             for key in TIME_POINTS:
                 if len(results) > 0 and (key not in results[-1]):
                     results[-1][key] = current_best
             results.append({})
-            current_best = float('inf') if MIN_OR_MAX == 'MIN' else float('-inf')
+            current_best = float('inf') if MIN_OR_MAX == 'MIN' else float(0)
         
         match = pattern.search(line)
         if match:
@@ -54,4 +54,6 @@ mean_values = df.mean()
 print("\nMean Objectives:")
 for col, mean in mean_values.items():
     print(f"{col}: {mean}")
+    
+print("\nData Preview:")
 print(df.head())
